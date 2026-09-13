@@ -1,0 +1,185 @@
+-- =========================================================
+-- DELTA EXECUTOR - CUSTOM CROSSHAIR & WATERMARK SCRIPT
+-- Credits: A_1g x ابوعابد🙌
+-- =========================================================
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
+
+-- التوافق مع مشغل دلتا (gethui أو CoreGui)
+local parentContainer = (gethui and gethui()) or CoreGui or player:WaitForChild("PlayerGui")
+
+-- إزالة السكربت القديم تلقائياً لمنع تكرار الواجهة عند إعادة التنفيذ
+if parentContainer:FindFirstChild("AbuAbedDeltaCrosshair") then
+	parentContainer.AbuAbedDeltaCrosshair:Destroy()
+end
+
+-- 1. إنشاء واجهة الشاشة
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AbuAbedDeltaCrosshair"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = parentContainer
+
+-- 2. شريط الحقوق والشعار (في أفق منتصف الشاشة العلوي)
+local watermark = Instance.new("TextLabel")
+watermark.Name = "CreditsWatermark"
+watermark.Size = UDim2.new(0, 220, 0, 32)
+watermark.Position = UDim2.new(0.5, -110, 0, 15)
+watermark.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+watermark.BackgroundTransparency = 0.25
+watermark.Text = "A_1g x ابوعابد🙌"
+watermark.TextColor3 = Color3.fromRGB(0, 255, 200)
+watermark.TextSize = 16
+watermark.Font = Enum.Font.GothamBold
+watermark.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = watermark
+
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Color = Color3.fromRGB(0, 255, 200)
+uiStroke.Thickness = 1.5
+uiStroke.Parent = watermark
+
+-- 3. حاوية المنتصف للكروسهير
+local center = Instance.new("Frame")
+center.Size = UDim2.new(0, 0, 0, 0)
+center.Position = UDim2.new(0.5, 0, 0.5, 0)
+center.BackgroundTransparency = 1
+center.Parent = screenGui
+
+local currentColor = Color3.fromRGB(0, 255, 150)
+
+-- نقطة المنتصف (Dot)
+local dot = Instance.new("Frame")
+dot.Size = UDim2.new(0, 6, 0, 6)
+dot.Position = UDim2.new(0, -3, 0, -3)
+dot.BackgroundColor3 = currentColor
+dot.BorderSizePixel = 0
+dot.Parent = center
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = dot
+
+-- خطوط التصويب (Cross Lines)
+local function createLine(size, pos)
+	local f = Instance.new("Frame")
+	f.Size = size
+	f.Position = pos
+	f.BackgroundColor3 = currentColor
+	f.BorderSizePixel = 0
+	f.Parent = center
+	return f
+end
+
+local top = createLine(UDim2.new(0, 2, 0, 10), UDim2.new(0, -1, 0, -14))
+local bottom = createLine(UDim2.new(0, 2, 0, 10), UDim2.new(0, -1, 0, 4))
+local left = createLine(UDim2.new(0, 10, 0, 2), UDim2.new(0, -14, 0, -1))
+local right = createLine(UDim2.new(0, 10, 0, 2), UDim2.new(0, 4, 0, -1))
+
+-- الدائرة (Circle)
+local circle = Instance.new("Frame")
+circle.Size = UDim2.new(0, 20, 0, 20)
+circle.Position = UDim2.new(0, -10, 0, -10)
+circle.BackgroundTransparency = 1
+circle.Parent = center
+
+local circleStroke = Instance.new("UIStroke")
+circleStroke.Thickness = 2
+circleStroke.Color = currentColor
+circleStroke.Parent = circle
+
+local circleCorner = Instance.new("UICorner")
+circleCorner.CornerRadius = UDim.new(1, 0)
+circleCorner.Parent = circle
+
+-- 4. التحكم في الأشكال والألوان
+local shapes = {"Cross", "Dot", "Circle", "CrossDot"}
+local currentShapeIndex = 1
+
+local function applyShape(shape)
+	dot.Visible = (shape == "Dot" or shape == "CrossDot")
+	top.Visible = (shape == "Cross" or shape == "CrossDot")
+	bottom.Visible = (shape == "Cross" or shape == "CrossDot")
+	left.Visible = (shape == "Cross" or shape == "CrossDot")
+	right.Visible = (shape == "Cross" or shape == "CrossDot")
+	circle.Visible = (shape == "Circle")
+end
+
+local colors = {
+	Color3.fromRGB(0, 255, 150),  -- أخضر نيون
+	Color3.fromRGB(255, 0, 0),    -- أحمر
+	Color3.fromRGB(0, 170, 255),  -- أزرق سماوي
+	Color3.fromRGB(255, 255, 0),  -- أصفر
+	Color3.fromRGB(255, 0, 255),  -- بنفسجي
+	Color3.fromRGB(255, 255, 255) -- أبيض
+}
+local currentColorIndex = 1
+
+local function applyColor(col)
+	currentColor = col
+	dot.BackgroundColor3 = col
+	top.BackgroundColor3 = col
+	bottom.BackgroundColor3 = col
+	left.BackgroundColor3 = col
+	right.BackgroundColor3 = col
+	circleStroke.Color = col
+end
+
+applyShape("Cross")
+applyColor(colors[1])
+
+-- 5. قائمة التحكم الجانبية (Control Panel)
+local menu = Instance.new("Frame")
+menu.Size = UDim2.new(0, 130, 0, 90)
+menu.Position = UDim2.new(0, 10, 0.35, 0)
+menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+menu.BackgroundTransparency = 0.3
+menu.Parent = screenGui
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 8)
+menuCorner.Parent = menu
+
+-- زر تغيير الشكل
+local shapeBtn = Instance.new("TextButton")
+shapeBtn.Size = UDim2.new(0.9, 0, 0.4, 0)
+shapeBtn.Position = UDim2.new(0.05, 0, 0.08, 0)
+shapeBtn.Text = "Shape: Cross"
+shapeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+shapeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+shapeBtn.TextScaled = true
+shapeBtn.Parent = menu
+
+local btn1Corner = Instance.new("UICorner")
+btn1Corner.CornerRadius = UDim.new(0, 6)
+btn1Corner.Parent = shapeBtn
+
+shapeBtn.MouseButton1Click:Connect(function()
+	currentShapeIndex = (currentShapeIndex % #shapes) + 1
+	local newShape = shapes[currentShapeIndex]
+	shapeBtn.Text = "Shape: " .. newShape
+	applyShape(newShape)
+end)
+
+-- زر تغيير اللون
+local colorBtn = Instance.new("TextButton")
+colorBtn.Size = UDim2.new(0.9, 0, 0.4, 0)
+colorBtn.Position = UDim2.new(0.05, 0, 0.52, 0)
+colorBtn.Text = "Color 🎨"
+colorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+colorBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+colorBtn.TextScaled = true
+colorBtn.Parent = menu
+
+local btn2Corner = Instance.new("UICorner")
+btn2Corner.CornerRadius = UDim.new(0, 6)
+btn2Corner.Parent = colorBtn
+
+colorBtn.MouseButton1Click:Connect(function()
+	currentColorIndex = (currentColorIndex % #colors) + 1
+	applyColor(colors[currentColorIndex])
+end)
