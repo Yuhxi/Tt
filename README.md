@@ -16,7 +16,7 @@ end
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AbuAbedDeltaCrosshair"
 screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true -- إغلاق الفارق العلوي لضبط المنتصف بدقة
+screenGui.IgnoreGuiInset = true
 screenGui.Parent = parentContainer
 
 -- 1. شريط الحقوق والشعار
@@ -229,7 +229,7 @@ colorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 colorBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 colorBtn.TextScaled = true
 colorBtn.Parent = menu
-local b3 = Instance.new("UICorner"); b3.CornerRadius = UDim.new(0, 6); b3.Parent = colorBtn
+local b3 = Instance.new("UICorner"); b3.CornerRadius = UDim.new(0, 6); b3.Parent = b3
 
 colorBtn.MouseButton1Click:Connect(function()
 	currentColorIndex = (currentColorIndex % #colors) + 1
