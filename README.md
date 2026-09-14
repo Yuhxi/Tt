@@ -1,5 +1,5 @@
 -- =========================================================
--- DELTA EXECUTOR - AIMBOT + CROSSHAIR SYSTEM
+-- DELTA EXECUTOR - AIMBOT + CROSSHAIR SYSTEM (WALL CHECK FIX)
 -- Credits: A_1g x ابوعابد🙌
 -- =========================================================
 
@@ -135,13 +135,16 @@ local currentSizeIndex = 2
 applyShape(shapes[1])
 applyColor(colors[1])
 
--- 4. محرك الايم بوت (Camera Aimbot بدون FOV)
+-- 4. محرك الايم بوت مع فحص الجدران (Wall Check & Visibility)
 local aimbotEnabled = false
 
-local function getClosestEnemy()
+local function getClosestVisibleEnemy()
 	local closestTarget = nil
-	local shortestDistance = math.huge
+	local shortestDistance = 250 -- أقصى مسافة عن منتصف الشاشة لاستهداف الشخص
 	local mousePos = Vector2.new(mouse.X, mouse.Y)
+
+	local localChar = player.Character
+	if not localChar then return nil end
 
 	for _, p in ipairs(Players:GetPlayers()) do
 		if p ~= player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
@@ -152,8 +155,22 @@ local function getClosestEnemy()
 					if onScreen then
 						local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
 						if dist < shortestDistance then
-							shortestDistance = dist
-							closestTarget = targetPart
+							-- فحص الجدار (Wall Check)
+							local rayOrigin = camera.CFrame.Position
+							local rayDirection = targetPart.Position - rayOrigin
+
+							local raycastParams = RaycastParams.new()
+							raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+							raycastParams.FilterDescendantsInstances = {localChar, camera}
+							raycastParams.IgnoreWater = true
+
+							local rayResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+							-- التأكد من أن الشعاع يصيب جسم الشخص المباشر وليس جداراً
+							if rayResult and rayResult.Instance:IsDescendantOf(p.Character) then
+								shortestDistance = dist
+								closestTarget = targetPart
+							end
 						end
 					end
 				end
@@ -165,14 +182,14 @@ end
 
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled then
-		local target = getClosestEnemy()
+		local target = getClosestVisibleEnemy()
 		if target then
 			camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
 		end
 	end
 end)
 
--- 5. قائمة التحكم والداخلية
+-- 5. قائمة التحكم
 local menu = Instance.new("Frame")
 menu.Size = UDim2.new(0, 145, 0, 175)
 menu.Position = UDim2.new(0, 10, 0.28, 0)
