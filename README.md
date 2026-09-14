@@ -1,11 +1,15 @@
 -- =========================================================
--- DELTA EXECUTOR - PERFECT CENTER CROSSHAIR + SIZES & WATERMARK
+-- DELTA EXECUTOR - CROSSHAIR + AIM ASSIST SYSTEM & WATERMARK
 -- Credits: A_1g x ابوعابد🙌
 -- =========================================================
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
 local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
 
 local parentContainer = (gethui and gethui()) or CoreGui or player:WaitForChild("PlayerGui")
 
@@ -42,7 +46,7 @@ uiStroke.Color = Color3.fromRGB(0, 255, 200)
 uiStroke.Thickness = 1.5
 uiStroke.Parent = watermark
 
--- 2. حاوية المنتصف الدقيقة
+-- 2. حاوية المنتصف للكروسهير
 local center = Instance.new("Frame")
 center.Size = UDim2.new(0, 0, 0, 0)
 center.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -171,10 +175,51 @@ applyShape("Cross")
 applyColor(colors[1])
 updateSize()
 
--- 5. قائمة التحكم الجانبية
+-- 5. نظام الـ Aim Assist
+local aimAssistEnabled = false
+local aimFov = 180 -- نطاق البحث عن الخصوم حول النيشان
+local aimSmoothness = 0.25 -- سلاسة السحب (0.1 سريع جداً، 0.5 ناعم وسلس)
+
+local function getClosestEnemy()
+	local closestTarget = nil
+	local shortestDistance = aimFov
+	local viewportCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+			-- إمكانية التمييز بين الأوراق والفِرق إن وجدت
+			if player.Team == nil or p.Team ~= player.Team then
+				local head = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart")
+				if head then
+					local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+					if onScreen then
+						local dist = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
+						if dist < shortestDistance then
+							shortestDistance = dist
+							closestTarget = head
+						end
+					end
+				end
+			end
+		end
+	end
+	return closestTarget
+end
+
+RunService.RenderStepped:Connect(function()
+	if aimAssistEnabled then
+		local targetHead = getClosestEnemy()
+		if targetHead then
+			local targetCFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
+			camera.CFrame = camera.CFrame:Lerp(targetCFrame, aimSmoothness)
+		end
+	end
+end)
+
+-- 6. قائمة التحكم الجانبية (Menu)
 local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 130, 0, 125)
-menu.Position = UDim2.new(0, 10, 0.35, 0)
+menu.Size = UDim2.new(0, 135, 0, 160)
+menu.Position = UDim2.new(0, 10, 0.3, 0)
 menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 menu.BackgroundTransparency = 0.3
 menu.Parent = screenGui
@@ -185,8 +230,8 @@ menuCorner.Parent = menu
 
 -- زر الشكل
 local shapeBtn = Instance.new("TextButton")
-shapeBtn.Size = UDim2.new(0.9, 0, 0.27, 0)
-shapeBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
+shapeBtn.Size = UDim2.new(0.9, 0, 0.2, 0)
+shapeBtn.Position = UDim2.new(0.05, 0, 0.04, 0)
 shapeBtn.Text = "Shape: Cross"
 shapeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 shapeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -203,8 +248,8 @@ end)
 
 -- زر الحجم
 local sizeBtn = Instance.new("TextButton")
-sizeBtn.Size = UDim2.new(0.9, 0, 0.27, 0)
-sizeBtn.Position = UDim2.new(0.05, 0, 0.36, 0)
+sizeBtn.Size = UDim2.new(0.9, 0, 0.2, 0)
+sizeBtn.Position = UDim2.new(0.05, 0, 0.28, 0)
 sizeBtn.Text = "Size: Medium"
 sizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 sizeBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -222,16 +267,38 @@ end)
 
 -- زر اللون
 local colorBtn = Instance.new("TextButton")
-colorBtn.Size = UDim2.new(0.9, 0, 0.27, 0)
-colorBtn.Position = UDim2.new(0.05, 0, 0.67, 0)
+colorBtn.Size = UDim2.new(0.9, 0, 0.2, 0)
+colorBtn.Position = UDim2.new(0.05, 0, 0.52, 0)
 colorBtn.Text = "Color 🎨"
 colorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 colorBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 colorBtn.TextScaled = true
 colorBtn.Parent = menu
-local b3 = Instance.new("UICorner"); b3.CornerRadius = UDim.new(0, 6); b3.Parent = b3
+local b3 = Instance.new("UICorner"); b3.CornerRadius = UDim.new(0, 6); b3.Parent = colorBtn
 
 colorBtn.MouseButton1Click:Connect(function()
 	currentColorIndex = (currentColorIndex % #colors) + 1
 	applyColor(colors[currentColorIndex])
+end)
+
+-- زر الـ Aim Assist
+local aimBtn = Instance.new("TextButton")
+aimBtn.Size = UDim2.new(0.9, 0, 0.2, 0)
+aimBtn.Position = UDim2.new(0.05, 0, 0.76, 0)
+aimBtn.Text = "Aim Assist: OFF"
+aimBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+aimBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+aimBtn.TextScaled = true
+aimBtn.Parent = menu
+local b4 = Instance.new("UICorner"); b4.CornerRadius = UDim.new(0, 6); b4.Parent = aimBtn
+
+aimBtn.MouseButton1Click:Connect(function()
+	aimAssistEnabled = not aimAssistEnabled
+	if aimAssistEnabled then
+		aimBtn.Text = "Aim Assist: ON 🔥"
+		aimBtn.TextColor3 = Color3.fromRGB(0, 255, 150)
+	else
+		aimBtn.Text = "Aim Assist: OFF"
+		aimBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
 end)
