@@ -1,367 +1,246 @@
--- Delta Executor Universal Script (Aimbot + Custom Crosshair + Lalo Salamanca BG + Fixed UI)
+-- =========================================================
+-- DELTA EXECUTOR - AIMBOT + CROSSHAIR SYSTEM
+-- Credits: A_1g x ابوعابد🙌
+-- =========================================================
+
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
-local parentGui = gethui and gethui() or CoreGui
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local camera = Workspace.CurrentCamera
 
--- 1. تنظيف شامل لجميع الواجهات والسكربتات القديمة (سواء في CoreGui أو PlayerGui)
-local function cleanup()
-    local targets = {parentGui, LocalPlayer:FindFirstChild("PlayerGui")}
-    for _, folder in pairs(targets) do
-        if folder then
-            for _, child in pairs(folder:GetChildren()) do
-                if child:IsA("ScreenGui") and (
-                    child.Name:find("Delta") or 
-                    child.Name:find("Crosshair") or 
-                    child.Name:find("Custom")
-                ) then
-                    child:Destroy()
-                end
-            end
-        end
-    end
-end
-cleanup()
+local parentContainer = (gethui and gethui()) or CoreGui or player:WaitForChild("PlayerGui")
 
--- جدول الإعدادات
-local Settings = {
-    AimbotEnabled = false,
-    AimbotFOV = 120,
-    ShowFOV = true,
-    CrosshairSize = 15, -- الحجم المسموح من 1 إلى 100
-    CrosshairShape = "Cross (+)", -- "Cross (+)", "Dot (•)", "Cross + Dot"
-    CrosshairColor = Color3.fromRGB(0, 255, 170)
-}
-
--- تحميل صورة الخلفية (لالو سالامانكا) وتخزينها محلياً لدلتا
-local bgAssetId = ""
-local fileName = "LaloBackground.png"
-
-if writefile and getcustomasset then
-    if not isfile(fileName) then
-        pcall(function()
-            writefile(fileName, game:HttpGet("https://raw.githubusercontent.com/Yuhxi/Tt/main/lalo.png"))
-        end)
-    end
-    pcall(function()
-        bgAssetId = getcustomasset(fileName)
-    end)
+if parentContainer:FindFirstChild("AbuAbedDeltaCrosshair") then
+	parentContainer.AbuAbedDeltaCrosshair:Destroy()
 end
 
--- إنشاء الشاشة الرئيسية
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DeltaMasterGui_V2"
+screenGui.Name = "AbuAbedDeltaCrosshair"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = parentGui
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = parentContainer
 
--- 2. شعار التوقيع العلوي
+-- 1. شريط الحقوق والشعار
 local watermark = Instance.new("TextLabel")
-watermark.Name = "Watermark"
+watermark.Name = "CreditsWatermark"
+watermark.Size = UDim2.new(0, 220, 0, 32)
 watermark.AnchorPoint = Vector2.new(0.5, 0)
-watermark.Position = UDim2.new(0.5, 0, 0.02, 0)
-watermark.Size = UDim2.new(0, 240, 0, 35)
-watermark.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+watermark.Position = UDim2.new(0.5, 0, 0, 45)
+watermark.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 watermark.BackgroundTransparency = 0.2
 watermark.Text = "A_1g x ابوعابد🙌"
-watermark.TextColor3 = Color3.fromRGB(0, 255, 170)
-watermark.TextSize = 18
-watermark.Font = Enum.Font.SourceSansBold
-watermark.ZIndex = 10
+watermark.TextColor3 = Color3.fromRGB(0, 255, 220)
+watermark.TextSize = 16
+watermark.Font = Enum.Font.GothamBold
 watermark.Parent = screenGui
 
-Instance.new("UICorner", watermark).CornerRadius = UDim.new(0, 8)
-local wmStroke = Instance.new("UIStroke", watermark)
-wmStroke.Color = Color3.fromRGB(0, 255, 170)
-wmStroke.Thickness = 1.5
+local uiCornerWM = Instance.new("UICorner"); uiCornerWM.CornerRadius = UDim.new(0, 8); uiCornerWM.Parent = watermark
+local uiStrokeWM = Instance.new("UIStroke"); uiStrokeWM.Color = Color3.fromRGB(0, 255, 220); uiStrokeWM.Thickness = 1.5; uiStrokeWM.Parent = watermark
 
--- 3. زر الفتح والإغلاق العائم (⚙️)
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Name = "OpenToggle"
-toggleBtn.Position = UDim2.new(0.03, 0, 0.2, 0)
-toggleBtn.Size = UDim2.new(0, 45, 0, 45)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-toggleBtn.Text = "⚙️"
-toggleBtn.TextSize = 22
-toggleBtn.ZIndex = 10
-toggleBtn.Parent = screenGui
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 22)
-local tgStroke = Instance.new("UIStroke", toggleBtn)
-tgStroke.Color = Color3.fromRGB(0, 255, 170)
+-- 2. حاوية المنتصف للكروسهير
+local center = Instance.new("Frame")
+center.Size = UDim2.new(0, 0, 0, 0)
+center.Position = UDim2.new(0.5, 0, 0.5, 0)
+center.BackgroundTransparency = 1
+center.Parent = screenGui
 
--- 4. الكروس هير (+) في منتصف الشاشة بالدقة الحسابية الصحيحة
-local centerFrame = Instance.new("Frame")
-centerFrame.Name = "CrosshairCenter"
-centerFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-centerFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-centerFrame.Size = UDim2.new(0, 0, 0, 0)
-centerFrame.BackgroundTransparency = 1
-centerFrame.ZIndex = 5
-centerFrame.Parent = screenGui
+local currentColor = Color3.fromRGB(0, 255, 150)
+local currentScale = 1.0
 
-local topLine = Instance.new("Frame", centerFrame)
-local botLine = Instance.new("Frame", centerFrame)
-local leftLine = Instance.new("Frame", centerFrame)
-local rightLine = Instance.new("Frame", centerFrame)
-local dotFrame = Instance.new("Frame", centerFrame)
+local dot = Instance.new("Frame"); dot.AnchorPoint = Vector2.new(0.5, 0.5); dot.BackgroundColor3 = currentColor; dot.BorderSizePixel = 0; dot.Parent = center
+local dotCorner = Instance.new("UICorner"); dotCorner.CornerRadius = UDim.new(1, 0); dotCorner.Parent = dot
 
-local function updateCrosshair()
-    local sz = Settings.CrosshairSize
-    local th = 2
-    local gap = 3
-    local col = Settings.CrosshairColor
-    local shape = Settings.CrosshairShape
-    
-    local showCross = (shape == "Cross (+)" or shape == "Cross + Dot")
-    local showDot = (shape == "Dot (•)" or shape == "Cross + Dot")
-    
-    topLine.Visible = showCross
-    topLine.AnchorPoint = Vector2.new(0.5, 1)
-    topLine.Size = UDim2.new(0, th, 0, sz)
-    topLine.Position = UDim2.new(0.5, 0, 0.5, -gap)
-    topLine.BackgroundColor3 = col
-    topLine.BorderSizePixel = 0
+local top = Instance.new("Frame"); top.AnchorPoint = Vector2.new(0.5, 1); top.BackgroundColor3 = currentColor; top.BorderSizePixel = 0; top.Parent = center
+local bottom = Instance.new("Frame"); bottom.AnchorPoint = Vector2.new(0.5, 0); bottom.BackgroundColor3 = currentColor; bottom.BorderSizePixel = 0; bottom.Parent = center
+local left = Instance.new("Frame"); left.AnchorPoint = Vector2.new(1, 0.5); left.BackgroundColor3 = currentColor; left.BorderSizePixel = 0; left.Parent = center
+local right = Instance.new("Frame"); right.AnchorPoint = Vector2.new(0, 0.5); right.BackgroundColor3 = currentColor; right.BorderSizePixel = 0; right.Parent = center
 
-    botLine.Visible = showCross
-    botLine.AnchorPoint = Vector2.new(0.5, 0)
-    botLine.Size = UDim2.new(0, th, 0, sz)
-    botLine.Position = UDim2.new(0.5, 0, 0.5, gap)
-    botLine.BackgroundColor3 = col
-    botLine.BorderSizePixel = 0
+local circle = Instance.new("Frame"); circle.AnchorPoint = Vector2.new(0.5, 0.5); circle.BackgroundTransparency = 1; circle.Parent = center
+local circleStroke = Instance.new("UIStroke"); circleStroke.Color = currentColor; circleStroke.Parent = circle
+local circleCorner = Instance.new("UICorner"); circleCorner.CornerRadius = UDim.new(1, 0); circleCorner.Parent = circle
 
-    leftLine.Visible = showCross
-    leftLine.AnchorPoint = Vector2.new(1, 0.5)
-    leftLine.Size = UDim2.new(0, sz, 0, th)
-    leftLine.Position = UDim2.new(0.5, -gap, 0.5, 0)
-    leftLine.BackgroundColor3 = col
-    leftLine.BorderSizePixel = 0
+-- 3. الأشكال والألوان والأحجام
+local shapes = {"Plus (+)", "Cross", "Dot", "Circle", "CrossDot"}
+local currentShapeIndex = 1
 
-    rightLine.Visible = showCross
-    rightLine.AnchorPoint = Vector2.new(0, 0.5)
-    rightLine.Size = UDim2.new(0, sz, 0, th)
-    rightLine.Position = UDim2.new(0.5, gap, 0.5, 0)
-    rightLine.BackgroundColor3 = col
-    rightLine.BorderSizePixel = 0
+local function updateSize()
+	local s = currentScale
+	dot.Size = UDim2.new(0, 6 * s, 0, 6 * s)
+	dot.Position = UDim2.new(0, 0, 0, 0)
 
-    dotFrame.Visible = showDot
-    local dSz = math.clamp(math.floor(sz / 2.5), 3, 14)
-    dotFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    dotFrame.Size = UDim2.new(0, dSz, 0, dSz)
-    dotFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    dotFrame.BackgroundColor3 = col
-    dotFrame.BorderSizePixel = 0
-    
-    local dCorner = dotFrame:FindFirstChildOfClass("UICorner") or Instance.new("UICorner", dotFrame)
-    dCorner.CornerRadius = UDim.new(1, 0)
-end
-updateCrosshair()
+	local currentShape = shapes[currentShapeIndex]
+	local gap = (currentShape == "Plus (+)") and 0 or (4 * s)
+	local len = 10 * s
+	local thick = math.max(2, 2 * s)
 
--- 5. دائرة نطاق الإيم بوت (FOV Circle)
-local fovCircle = Instance.new("Frame")
-fovCircle.Name = "FOVCircle"
-fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
-fovCircle.BackgroundTransparency = 1
-fovCircle.Parent = screenGui
+	top.Size = UDim2.new(0, thick, 0, len)
+	top.Position = UDim2.new(0, 0, 0, -gap)
 
-Instance.new("UICorner", fovCircle).CornerRadius = UDim.new(1, 0)
-local fovStroke = Instance.new("UIStroke", fovCircle)
-fovStroke.Color = Color3.fromRGB(0, 255, 170)
-fovStroke.Thickness = 1.5
-fovStroke.Transparency = 0.3
+	bottom.Size = UDim2.new(0, thick, 0, len)
+	bottom.Position = UDim2.new(0, 0, 0, gap)
 
-local function updateFOV()
-    fovCircle.Size = UDim2.new(0, Settings.AimbotFOV * 2, 0, Settings.AimbotFOV * 2)
-    fovCircle.Visible = Settings.ShowFOV and Settings.AimbotEnabled
-end
-updateFOV()
+	left.Size = UDim2.new(0, len, 0, thick)
+	left.Position = UDim2.new(0, -gap, 0, 0)
 
--- 6. القائمة الرئيسية ذات الخلفية المصورة (لالو سالامانكا)
-local mainPanel = Instance.new("Frame")
-mainPanel.Name = "MainPanel"
-mainPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-mainPanel.Position = UDim2.new(0.5, 0, 0.5, 0)
-mainPanel.Size = UDim2.new(0, 280, 0, 330)
-mainPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-mainPanel.ClipsDescendants = true
-mainPanel.ZIndex = 8
-mainPanel.Parent = screenGui
+	right.Size = UDim2.new(0, len, 0, thick)
+	right.Position = UDim2.new(0, gap, 0, 0)
 
-Instance.new("UICorner", mainPanel).CornerRadius = UDim.new(0, 14)
-local panelStroke = Instance.new("UIStroke", mainPanel)
-panelStroke.Color = Color3.fromRGB(0, 255, 170)
-panelStroke.Thickness = 1.5
-
--- إضافة صورة خلفية لالو سالامانكا
-local bgImage = Instance.new("ImageLabel")
-bgImage.Name = "LaloBG"
-bgImage.Size = UDim2.new(1, 0, 1, 0)
-bgImage.Position = UDim2.new(0, 0, 0, 0)
-bgImage.BackgroundTransparency = 1
-bgImage.Image = bgAssetId ~= "" and bgAssetId or "rbxassetid://10870932204"
-bgImage.ImageTransparency = 0.35
-bgImage.ScaleType = Enum.ScaleType.Crop
-bgImage.ZIndex = 1
-bgImage.Parent = mainPanel
-
--- طبقة تظليل ليكون الكلام مريح ومقروء
-local overlay = Instance.new("Frame")
-overlay.Size = UDim2.new(1, 0, 1, 0)
-overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-overlay.BackgroundTransparency = 0.4
-overlay.ZIndex = 2
-overlay.Parent = mainPanel
-
-toggleBtn.MouseButton1Click:Connect(function()
-    mainPanel.Visible = not mainPanel.Visible
-end)
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 35)
-title.Text = "لوحة التحكم الشاملة"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
-title.BackgroundTransparency = 1
-title.ZIndex = 3
-title.Parent = mainPanel
-
-local function createButton(text, pos, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 32)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    btn.BackgroundTransparency = 0.2
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 14
-    btn.ZIndex = 3
-    btn.Parent = mainPanel
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    
-    local btnStroke = Instance.new("UIStroke", btn)
-    btnStroke.Color = Color3.fromRGB(60, 60, 60)
-    btnStroke.Thickness = 1
-    
-    btn.MouseButton1Click:Connect(function() callback(btn) end)
-    return btn
+	circle.Size = UDim2.new(0, 20 * s, 0, 20 * s)
+	circle.Position = UDim2.new(0, 0, 0, 0)
+	circleStroke.Thickness = math.max(1.5, 2 * s)
 end
 
--- زر الإيم بوت
-local aimBtn = createButton("Aimbot: OFF", UDim2.new(0.05, 0, 0.13, 0), function(btn)
-    Settings.AimbotEnabled = not Settings.AimbotEnabled
-    btn.Text = Settings.AimbotEnabled and "Aimbot: ON" or "Aimbot: OFF"
-    btn.BackgroundColor3 = Settings.AimbotEnabled and Color3.fromRGB(0, 180, 90) or Color3.fromRGB(180, 50, 50)
-    updateFOV()
-end)
-aimBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+local function applyShape(shape)
+	dot.Visible = (shape == "Dot" or shape == "CrossDot")
+	top.Visible = (shape == "Plus (+)" or shape == "Cross" or shape == "CrossDot")
+	bottom.Visible = (shape == "Plus (+)" or shape == "Cross" or shape == "CrossDot")
+	left.Visible = (shape == "Plus (+)" or shape == "Cross" or shape == "CrossDot")
+	right.Visible = (shape == "Plus (+)" or shape == "Cross" or shape == "CrossDot")
+	circle.Visible = (shape == "Circle")
+	updateSize()
+end
 
--- زر إظهار دائرة FOV
-local fovBtn = createButton("دائرة FOV: مفعلة", UDim2.new(0.05, 0, 0.27, 0), function(btn)
-    Settings.ShowFOV = not Settings.ShowFOV
-    btn.Text = Settings.ShowFOV and "دائرة FOV: مفعلة" or "دائرة FOV: معطلة"
-    updateFOV()
-end)
-
--- زر تغيير شكل الكروس هير
-local shapes = {"Cross (+)", "Dot (•)", "Cross + Dot"}
-local shapeIndex = 1
-local shapeBtn = createButton("الشكل: Cross (+)", UDim2.new(0.05, 0, 0.41, 0), function(btn)
-    shapeIndex = (shapeIndex % #shapes) + 1
-    Settings.CrosshairShape = shapes[shapeIndex]
-    btn.Text = "الشكل: " .. Settings.CrosshairShape
-    updateCrosshair()
-end)
-
--- مربع تحديد الحجم (من 1 إلى 100)
-local sizeLabel = Instance.new("TextLabel")
-sizeLabel.Size = UDim2.new(0.55, 0, 0, 32)
-sizeLabel.Position = UDim2.new(0.05, 0, 0.55, 0)
-sizeLabel.Text = "الحجم (من 1 - 100):"
-sizeLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-sizeLabel.Font = Enum.Font.SourceSans
-sizeLabel.TextSize = 13
-sizeLabel.BackgroundTransparency = 1
-sizeLabel.ZIndex = 3
-sizeLabel.Parent = mainPanel
-
-local sizeBox = Instance.new("TextBox")
-sizeBox.Size = UDim2.new(0.3, 0, 0, 32)
-sizeBox.Position = UDim2.new(0.63, 0, 0.55, 0)
-sizeBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-sizeBox.BackgroundTransparency = 0.2
-sizeBox.Text = tostring(Settings.CrosshairSize)
-sizeBox.TextColor3 = Color3.fromRGB(0, 255, 170)
-sizeBox.Font = Enum.Font.SourceSansBold
-sizeBox.TextSize = 15
-sizeBox.ZIndex = 3
-sizeBox.Parent = mainPanel
-Instance.new("UICorner", sizeBox).CornerRadius = UDim.new(0, 6)
-
-sizeBox.FocusLost:Connect(function()
-    local val = tonumber(sizeBox.Text)
-    if val then
-        val = math.clamp(math.floor(val), 1, 100)
-        Settings.CrosshairSize = val
-        sizeBox.Text = tostring(val)
-        updateCrosshair()
-    else
-        sizeBox.Text = tostring(Settings.CrosshairSize)
-    end
-end)
-
--- تبديل الألوان
 local colors = {
-    {name = "أخضر نيوني", color = Color3.fromRGB(0, 255, 170)},
-    {name = "أحمر", color = Color3.fromRGB(255, 50, 50)},
-    {name = "أزرق", color = Color3.fromRGB(50, 150, 255)},
-    {name = "أصفر", color = Color3.fromRGB(255, 230, 0)},
-    {name = "أبيض", color = Color3.fromRGB(255, 255, 255)}
+	Color3.fromRGB(0, 255, 150),
+	Color3.fromRGB(255, 0, 80),
+	Color3.fromRGB(0, 180, 255),
+	Color3.fromRGB(255, 230, 0),
+	Color3.fromRGB(200, 50, 255),
+	Color3.fromRGB(255, 255, 255)
 }
-local colorIdx = 1
-local colorBtn = createButton("اللون: أخضر نيوني 🎨", UDim2.new(0.05, 0, 0.69, 0), function(btn)
-    colorIdx = (colorIdx % #colors) + 1
-    Settings.CrosshairColor = colors[colorIdx].color
-    btn.Text = "اللون: " .. colors[colorIdx].name .. " 🎨"
-    updateCrosshair()
-end)
+local currentColorIndex = 1
 
--- زر إغلاق القائمة
-local closeBtn = createButton("إغلاق القائمة", UDim2.new(0.05, 0, 0.83, 0), function()
-    mainPanel.Visible = false
-end)
-closeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+local function applyColor(col)
+	currentColor = col
+	dot.BackgroundColor3 = col
+	top.BackgroundColor3 = col
+	bottom.BackgroundColor3 = col
+	left.BackgroundColor3 = col
+	right.BackgroundColor3 = col
+	circleStroke.Color = col
+end
 
--- 7. محرك الإيم بوت (Aimbot Logic)
-local function getClosestPlayer()
-    local closest = nil
-    local maxDist = Settings.AimbotFOV
+local sizes = {
+	{name = "Small", scale = 0.75},
+	{name = "Medium", scale = 1.0},
+	{name = "Large", scale = 1.4},
+	{name = "XL", scale = 1.8}
+}
+local currentSizeIndex = 2
 
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local head = player.Character.Head
-            local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-            
-            if onScreen then
-                local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                if dist < maxDist then
-                    maxDist = dist
-                    closest = head
-                end
-            end
-        end
-    end
-    return closest
+applyShape(shapes[1])
+applyColor(colors[1])
+
+-- 4. محرك الايم بوت (Camera Aimbot بدون FOV)
+local aimbotEnabled = false
+
+local function getClosestEnemy()
+	local closestTarget = nil
+	local shortestDistance = math.huge
+	local mousePos = Vector2.new(mouse.X, mouse.Y)
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+			if player.Team == nil or p.Team ~= player.Team then
+				local targetPart = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart")
+				if targetPart then
+					local screenPos, onScreen = camera:WorldToViewportPoint(targetPart.Position)
+					if onScreen then
+						local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+						if dist < shortestDistance then
+							shortestDistance = dist
+							closestTarget = targetPart
+						end
+					end
+				end
+			end
+		end
+	end
+	return closestTarget
 end
 
 RunService.RenderStepped:Connect(function()
-    if Settings.AimbotEnabled then
-        local targetHead = getClosestPlayer()
-        if targetHead then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetHead.Position)
-        end
-    end
+	if aimbotEnabled then
+		local target = getClosestEnemy()
+		if target then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
+		end
+	end
+end)
+
+-- 5. قائمة التحكم والداخلية (مع الخلفية الداكنة)
+local menu = Instance.new("Frame")
+menu.Size = UDim2.new(0, 145, 0, 175)
+menu.Position = UDim2.new(0, 10, 0.28, 0)
+menu.BackgroundColor3 = Color3.fromRGB(12, 14, 22)
+menu.BackgroundTransparency = 0.1
+menu.Parent = screenGui
+
+local menuCorner = Instance.new("UICorner"); menuCorner.CornerRadius = UDim.new(0, 10); menuCorner.Parent = menu
+local menuStroke = Instance.new("UIStroke"); menuStroke.Color = Color3.fromRGB(0, 220, 255); menuStroke.Thickness = 1.5; menuStroke.Parent = menu
+
+-- طبقة خلفية متدرجة للتصميم
+local menuBgStyle = Instance.new("Frame")
+menuBgStyle.Size = UDim2.new(1, 0, 1, 0)
+menuBgStyle.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
+menuBgStyle.BackgroundTransparency = 0.95
+menuBgStyle.Parent = menu
+local bgCorner = Instance.new("UICorner"); bgCorner.CornerRadius = UDim.new(0, 10); bgCorner.Parent = menuBgStyle
+
+local function createStyledButton(text, pos, bgColor, strokeColor)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.9, 0, 0.2, 0)
+	btn.Position = pos
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.BackgroundColor3 = bgColor
+	btn.TextScaled = true
+	btn.Font = Enum.Font.GothamMedium
+	btn.Parent = menu
+
+	local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(0, 6); btnCorner.Parent = btn
+	local btnStroke = Instance.new("UIStroke"); btnStroke.Color = strokeColor; btnStroke.Thickness = 1; btnStroke.Parent = btn
+
+	return btn
+end
+
+local shapeBtn = createStyledButton("Shape: Plus (+)", UDim2.new(0.05, 0, 0.04, 0), Color3.fromRGB(24, 28, 42), Color3.fromRGB(0, 200, 255))
+shapeBtn.MouseButton1Click:Connect(function()
+	currentShapeIndex = (currentShapeIndex % #shapes) + 1
+	local newShape = shapes[currentShapeIndex]
+	shapeBtn.Text = "Shape: " .. newShape
+	applyShape(newShape)
+end)
+
+local sizeBtn = createStyledButton("Size: Medium", UDim2.new(0.05, 0, 0.28, 0), Color3.fromRGB(24, 28, 42), Color3.fromRGB(0, 200, 255))
+sizeBtn.MouseButton1Click:Connect(function()
+	currentSizeIndex = (currentSizeIndex % #sizes) + 1
+	local sz = sizes[currentSizeIndex]
+	sizeBtn.Text = "Size: " .. sz.name
+	currentScale = sz.scale
+	updateSize()
+end)
+
+local colorBtn = createStyledButton("Color 🎨", UDim2.new(0.05, 0, 0.52, 0), Color3.fromRGB(24, 28, 42), Color3.fromRGB(0, 200, 255))
+colorBtn.MouseButton1Click:Connect(function()
+	currentColorIndex = (currentColorIndex % #colors) + 1
+	applyColor(colors[currentColorIndex])
+end)
+
+local aimbotBtn = createStyledButton("Aimbot: OFF", UDim2.new(0.05, 0, 0.76, 0), Color3.fromRGB(45, 20, 30), Color3.fromRGB(255, 50, 100))
+aimbotBtn.MouseButton1Click:Connect(function()
+	aimbotEnabled = not aimbotEnabled
+	if aimbotEnabled then
+		aimbotBtn.Text = "Aimbot: ON 🎯"
+		aimbotBtn.BackgroundColor3 = Color3.fromRGB(15, 45, 30)
+		aimbotBtn.UIStroke.Color = Color3.fromRGB(0, 255, 150)
+	else
+		aimbotBtn.Text = "Aimbot: OFF"
+		aimbotBtn.BackgroundColor3 = Color3.fromRGB(45, 20, 30)
+		aimbotBtn.UIStroke.Color = Color3.fromRGB(255, 50, 100)
+	end
 end)
