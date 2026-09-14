@@ -1,10 +1,11 @@
 -- =========================================================
--- DELTA EXECUTOR - ADVANCED SILENT AIM + CROSSHAIR & WATERMARK
+-- DELTA EXECUTOR - SILENT AIM + RADAR + CROSSHAIR SYSTEM
 -- Credits: A_1g x ابوعابد🙌
 -- =========================================================
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
@@ -36,14 +37,8 @@ watermark.TextSize = 16
 watermark.Font = Enum.Font.GothamBold
 watermark.Parent = screenGui
 
-local uiCornerWM = Instance.new("UICorner")
-uiCornerWM.CornerRadius = UDim.new(0, 8)
-uiCornerWM.Parent = watermark
-
-local uiStrokeWM = Instance.new("UIStroke")
-uiStrokeWM.Color = Color3.fromRGB(0, 255, 220)
-uiStrokeWM.Thickness = 1.5
-uiStrokeWM.Parent = watermark
+local uiCornerWM = Instance.new("UICorner"); uiCornerWM.CornerRadius = UDim.new(0, 8); uiCornerWM.Parent = watermark
+local uiStrokeWM = Instance.new("UIStroke"); uiStrokeWM.Color = Color3.fromRGB(0, 255, 220); uiStrokeWM.Thickness = 1.5; uiStrokeWM.Parent = watermark
 
 -- 2. دائرة النطاق للسايلنت ايم (FOV Circle)
 local silentAimFOV = 150
@@ -57,17 +52,79 @@ fovCircle.BackgroundTransparency = 1
 fovCircle.Visible = false
 fovCircle.Parent = screenGui
 
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
+local fovCorner = Instance.new("UICorner"); fovCorner.CornerRadius = UDim.new(1, 0); fovCorner.Parent = fovCircle
+local fovStroke = Instance.new("UIStroke"); fovStroke.Color = Color3.fromRGB(255, 0, 100); fovStroke.Thickness = 1.5; fovStroke.Transparency = 0.3; fovStroke.Parent = fovCircle
 
-local fovStroke = Instance.new("UIStroke")
-fovStroke.Color = Color3.fromRGB(255, 0, 100)
-fovStroke.Thickness = 1.5
-fovStroke.Transparency = 0.3
-fovStroke.Parent = fovCircle
+-- 3. نظام الرادار الكاشف (Radar UI)
+local radarEnabled = false
+local radarRange = 200
 
--- 3. حاوية المنتصف للكروسهير
+local radarFrame = Instance.new("Frame")
+radarFrame.Name = "RadarFrame"
+radarFrame.Size = UDim2.new(0, 125, 0, 125)
+radarFrame.Position = UDim2.new(1, -140, 1, -140)
+radarFrame.BackgroundColor3 = Color3.fromRGB(15, 18, 26)
+radarFrame.BackgroundTransparency = 0.25
+radarFrame.Visible = false
+radarFrame.Parent = screenGui
+
+local radarCorner = Instance.new("UICorner"); radarCorner.CornerRadius = UDim.new(1, 0); radarCorner.Parent = radarFrame
+local radarStroke = Instance.new("UIStroke"); radarStroke.Color = Color3.fromRGB(0, 255, 200); radarStroke.Thickness = 1.5; radarStroke.Parent = radarFrame
+
+local centerDot = Instance.new("Frame")
+centerDot.Size = UDim2.new(0, 6, 0, 6)
+centerDot.AnchorPoint = Vector2.new(0.5, 0.5)
+centerDot.Position = UDim2.new(0.5, 0, 0.5, 0)
+centerDot.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+centerDot.Parent = radarFrame
+local cdCorner = Instance.new("UICorner"); cdCorner.CornerRadius = UDim.new(1, 0); cdCorner.Parent = centerDot
+
+local radarBlips = {}
+
+local function updateRadar()
+	if not radarEnabled then return end
+
+	for _, blip in pairs(radarBlips) do
+		blip:Destroy()
+	end
+	table.clear(radarBlips)
+
+	local localChar = player.Character
+	local localHRP = localChar and localChar:FindFirstChild("HumanoidRootPart")
+	if not localHRP then return end
+
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+			local targetHRP = p.Character.HumanoidRootPart
+			local relPos = localHRP.CFrame:PointToObjectSpace(targetHRP.Position)
+
+			local x = relPos.X / radarRange
+			local z = relPos.Z / radarRange
+
+			local dist = math.sqrt(x*x + z*z)
+			if dist <= 1 then
+				local blip = Instance.new("Frame")
+				blip.Size = UDim2.new(0, 5, 0, 5)
+				blip.AnchorPoint = Vector2.new(0.5, 0.5)
+				blip.Position = UDim2.new(0.5 + (x * 0.45), 0, 0.5 + (z * 0.45), 0)
+
+				if player.Team and p.Team == player.Team then
+					blip.BackgroundColor3 = Color3.fromRGB(0, 255, 120)
+				else
+					blip.BackgroundColor3 = Color3.fromRGB(255, 40, 80)
+				end
+
+				blip.Parent = radarFrame
+				local bCorner = Instance.new("UICorner"); bCorner.CornerRadius = UDim.new(1, 0); bCorner.Parent = blip
+				table.insert(radarBlips, blip)
+			end
+		end
+	end
+end
+
+RunService.RenderStepped:Connect(updateRadar)
+
+-- 4. حاوية المنتصف للكروسهير
 local center = Instance.new("Frame")
 center.Size = UDim2.new(0, 0, 0, 0)
 center.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -77,53 +134,19 @@ center.Parent = screenGui
 local currentColor = Color3.fromRGB(0, 255, 150)
 local currentScale = 1.0
 
-local dot = Instance.new("Frame")
-dot.AnchorPoint = Vector2.new(0.5, 0.5)
-dot.BackgroundColor3 = currentColor
-dot.BorderSizePixel = 0
-dot.Parent = center
-local dotCorner = Instance.new("UICorner")
-dotCorner.CornerRadius = UDim.new(1, 0)
-dotCorner.Parent = dot
+local dot = Instance.new("Frame"); dot.AnchorPoint = Vector2.new(0.5, 0.5); dot.BackgroundColor3 = currentColor; dot.BorderSizePixel = 0; dot.Parent = center
+local dotCorner = Instance.new("UICorner"); dotCorner.CornerRadius = UDim.new(1, 0); dotCorner.Parent = dot
 
-local top = Instance.new("Frame")
-top.AnchorPoint = Vector2.new(0.5, 1)
-top.BackgroundColor3 = currentColor
-top.BorderSizePixel = 0
-top.Parent = center
+local top = Instance.new("Frame"); top.AnchorPoint = Vector2.new(0.5, 1); top.BackgroundColor3 = currentColor; top.BorderSizePixel = 0; top.Parent = center
+local bottom = Instance.new("Frame"); bottom.AnchorPoint = Vector2.new(0.5, 0); bottom.BackgroundColor3 = currentColor; bottom.BorderSizePixel = 0; bottom.Parent = center
+local left = Instance.new("Frame"); left.AnchorPoint = Vector2.new(1, 0.5); left.BackgroundColor3 = currentColor; left.BorderSizePixel = 0; left.Parent = center
+local right = Instance.new("Frame"); right.AnchorPoint = Vector2.new(0, 0.5); right.BackgroundColor3 = currentColor; right.BorderSizePixel = 0; right.Parent = center
 
-local bottom = Instance.new("Frame")
-bottom.AnchorPoint = Vector2.new(0.5, 0)
-bottom.BackgroundColor3 = currentColor
-bottom.BorderSizePixel = 0
-bottom.Parent = center
+local circle = Instance.new("Frame"); circle.AnchorPoint = Vector2.new(0.5, 0.5); circle.BackgroundTransparency = 1; circle.Parent = center
+local circleStroke = Instance.new("UIStroke"); circleStroke.Color = currentColor; circleStroke.Parent = circle
+local circleCorner = Instance.new("UICorner"); circleCorner.CornerRadius = UDim.new(1, 0); circleCorner.Parent = circle
 
-local left = Instance.new("Frame")
-left.AnchorPoint = Vector2.new(1, 0.5)
-left.BackgroundColor3 = currentColor
-left.BorderSizePixel = 0
-left.Parent = center
-
-local right = Instance.new("Frame")
-right.AnchorPoint = Vector2.new(0, 0.5)
-right.BackgroundColor3 = currentColor
-right.BorderSizePixel = 0
-right.Parent = center
-
-local circle = Instance.new("Frame")
-circle.AnchorPoint = Vector2.new(0.5, 0.5)
-circle.BackgroundTransparency = 1
-circle.Parent = center
-
-local circleStroke = Instance.new("UIStroke")
-circleStroke.Color = currentColor
-circleStroke.Parent = circle
-
-local circleCorner = Instance.new("UICorner")
-circleCorner.CornerRadius = UDim.new(1, 0)
-circleCorner.Parent = circle
-
--- 4. الأشكال والألوان والأحجام
+-- 5. الأشكال والألوان والأحجام
 local shapes = {"Plus (+)", "Cross", "Dot", "Circle", "CrossDot"}
 local currentShapeIndex = 1
 
@@ -195,7 +218,7 @@ local currentSizeIndex = 2
 applyShape(shapes[1])
 applyColor(colors[1])
 
--- 5. المحرك المتقدم للسايلنت ايم (Dual Hook Engine)
+-- 6. المحرك المتقدم للسايلنت ايم (Dual Hook Engine)
 local silentAimEnabled = false
 
 local function getClosestEnemyInFOV()
@@ -223,9 +246,8 @@ local function getClosestEnemyInFOV()
 	return closestTarget
 end
 
--- Hook 1: Raycast & Namecall Spoofing
-local oldNamecall
 if hookmetamethod then
+	local oldNamecall
 	oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
 		local method = getnamecallmethod()
 		local args = {...}
@@ -251,7 +273,6 @@ if hookmetamethod then
 		return oldNamecall(self, ...)
 	end))
 
-	-- Hook 2: Mouse Hit/Target Spoofing
 	local oldIndex
 	oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
 		if silentAimEnabled and not checkcaller() and self == mouse and (key == "Hit" or key == "Target") then
@@ -264,26 +285,20 @@ if hookmetamethod then
 	end))
 end
 
--- 6. قائمة التحكم الجانبية
+-- 7. قائمة التحكم الجانبية
 local menu = Instance.new("Frame")
-menu.Size = UDim2.new(0, 140, 0, 165)
-menu.Position = UDim2.new(0, 10, 0.3, 0)
+menu.Size = UDim2.new(0, 140, 0, 205)
+menu.Position = UDim2.new(0, 10, 0.28, 0)
 menu.BackgroundColor3 = Color3.fromRGB(15, 18, 26)
 menu.BackgroundTransparency = 0.15
 menu.Parent = screenGui
 
-local menuCorner = Instance.new("UICorner")
-menuCorner.CornerRadius = UDim.new(0, 10)
-menuCorner.Parent = menu
-
-local menuStroke = Instance.new("UIStroke")
-menuStroke.Color = Color3.fromRGB(0, 220, 255)
-menuStroke.Thickness = 1.2
-menuStroke.Parent = menu
+local menuCorner = Instance.new("UICorner"); menuCorner.CornerRadius = UDim.new(0, 10); menuCorner.Parent = menu
+local menuStroke = Instance.new("UIStroke"); menuStroke.Color = Color3.fromRGB(0, 220, 255); menuStroke.Thickness = 1.2; menuStroke.Parent = menu
 
 local function createStyledButton(text, pos, bgColor, strokeColor)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.9, 0, 0.2, 0)
+	btn.Size = UDim2.new(0.9, 0, 0.16, 0)
 	btn.Position = pos
 	btn.Text = text
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -292,19 +307,13 @@ local function createStyledButton(text, pos, bgColor, strokeColor)
 	btn.Font = Enum.Font.GothamMedium
 	btn.Parent = menu
 
-	local btnCorner = Instance.new("UICorner")
-	btnCorner.CornerRadius = UDim.new(0, 6)
-	btnCorner.Parent = btn
-
-	local btnStroke = Instance.new("UIStroke")
-	btnStroke.Color = strokeColor
-	btnStroke.Thickness = 1
-	btnStroke.Parent = btn
+	local btnCorner = Instance.new("UICorner"); btnCorner.CornerRadius = UDim.new(0, 6); btnCorner.Parent = btn
+	local btnStroke = Instance.new("UIStroke"); btnStroke.Color = strokeColor; btnStroke.Thickness = 1; btnStroke.Parent = btn
 
 	return btn
 end
 
-local shapeBtn = createStyledButton("Shape: Plus (+)", UDim2.new(0.05, 0, 0.04, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
+local shapeBtn = createStyledButton("Shape: Plus (+)", UDim2.new(0.05, 0, 0.03, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
 shapeBtn.MouseButton1Click:Connect(function()
 	currentShapeIndex = (currentShapeIndex % #shapes) + 1
 	local newShape = shapes[currentShapeIndex]
@@ -312,7 +321,7 @@ shapeBtn.MouseButton1Click:Connect(function()
 	applyShape(newShape)
 end)
 
-local sizeBtn = createStyledButton("Size: Medium", UDim2.new(0.05, 0, 0.28, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
+local sizeBtn = createStyledButton("Size: Medium", UDim2.new(0.05, 0, 0.22, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
 sizeBtn.MouseButton1Click:Connect(function()
 	currentSizeIndex = (currentSizeIndex % #sizes) + 1
 	local sz = sizes[currentSizeIndex]
@@ -321,13 +330,13 @@ sizeBtn.MouseButton1Click:Connect(function()
 	updateSize()
 end)
 
-local colorBtn = createStyledButton("Color 🎨", UDim2.new(0.05, 0, 0.52, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
+local colorBtn = createStyledButton("Color 🎨", UDim2.new(0.05, 0, 0.41, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
 colorBtn.MouseButton1Click:Connect(function()
 	currentColorIndex = (currentColorIndex % #colors) + 1
 	applyColor(colors[currentColorIndex])
 end)
 
-local silentBtn = createStyledButton("Silent Aim: OFF", UDim2.new(0.05, 0, 0.76, 0), Color3.fromRGB(45, 20, 30), Color3.fromRGB(255, 50, 100))
+local silentBtn = createStyledButton("Silent Aim: OFF", UDim2.new(0.05, 0, 0.60, 0), Color3.fromRGB(45, 20, 30), Color3.fromRGB(255, 50, 100))
 silentBtn.MouseButton1Click:Connect(function()
 	silentAimEnabled = not silentAimEnabled
 	fovCircle.Visible = silentAimEnabled
@@ -339,5 +348,20 @@ silentBtn.MouseButton1Click:Connect(function()
 		silentBtn.Text = "Silent Aim: OFF"
 		silentBtn.BackgroundColor3 = Color3.fromRGB(45, 20, 30)
 		silentBtn.UIStroke.Color = Color3.fromRGB(255, 50, 100)
+	end
+end)
+
+local radarBtn = createStyledButton("Radar: OFF", UDim2.new(0.05, 0, 0.79, 0), Color3.fromRGB(45, 20, 30), Color3.fromRGB(255, 50, 100))
+radarBtn.MouseButton1Click:Connect(function()
+	radarEnabled = not radarEnabled
+	radarFrame.Visible = radarEnabled
+	if radarEnabled then
+		radarBtn.Text = "Radar: ON 📡"
+		radarBtn.BackgroundColor3 = Color3.fromRGB(15, 45, 30)
+		radarBtn.UIStroke.Color = Color3.fromRGB(0, 255, 150)
+	else
+		radarBtn.Text = "Radar: OFF"
+		radarBtn.BackgroundColor3 = Color3.fromRGB(45, 20, 30)
+		radarBtn.UIStroke.Color = Color3.fromRGB(255, 50, 100)
 	end
 end)
