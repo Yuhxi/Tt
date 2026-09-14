@@ -1,5 +1,5 @@
 -- =========================================================
--- DELTA EXECUTOR - SILENT AIM + CUSTOM CROSSHAIR & WATERMARK
+-- DELTA EXECUTOR - ADVANCED SILENT AIM + CROSSHAIR & WATERMARK
 -- Credits: A_1g x ابوعابد🙌
 -- =========================================================
 
@@ -46,7 +46,7 @@ uiStrokeWM.Thickness = 1.5
 uiStrokeWM.Parent = watermark
 
 -- 2. دائرة النطاق للسايلنت ايم (FOV Circle)
-local silentAimFOV = 130 -- نطاق الاستهداف بالبكسل
+local silentAimFOV = 150
 
 local fovCircle = Instance.new("Frame")
 fovCircle.Name = "FOVCircle"
@@ -64,7 +64,7 @@ fovCorner.Parent = fovCircle
 local fovStroke = Instance.new("UIStroke")
 fovStroke.Color = Color3.fromRGB(255, 0, 100)
 fovStroke.Thickness = 1.5
-fovStroke.Transparency = 0.4
+fovStroke.Transparency = 0.3
 fovStroke.Parent = fovCircle
 
 -- 3. حاوية المنتصف للكروسهير
@@ -77,7 +77,6 @@ center.Parent = screenGui
 local currentColor = Color3.fromRGB(0, 255, 150)
 local currentScale = 1.0
 
--- عناصر الكروسهير
 local dot = Instance.new("Frame")
 dot.AnchorPoint = Vector2.new(0.5, 0.5)
 dot.BackgroundColor3 = currentColor
@@ -124,7 +123,7 @@ local circleCorner = Instance.new("UICorner")
 circleCorner.CornerRadius = UDim.new(1, 0)
 circleCorner.Parent = circle
 
--- 4. دالة تحديث الأشكال والأحجام
+-- 4. الأشكال والألوان والأحجام
 local shapes = {"Plus (+)", "Cross", "Dot", "Circle", "CrossDot"}
 local currentShapeIndex = 1
 
@@ -196,7 +195,7 @@ local currentSizeIndex = 2
 applyShape(shapes[1])
 applyColor(colors[1])
 
--- 5. نظام الـ Silent Aim (استهداف مجالي)
+-- 5. المحرك المتقدم للسايلنت ايم (Dual Hook Engine)
 local silentAimEnabled = false
 
 local function getClosestEnemyInFOV()
@@ -224,25 +223,48 @@ local function getClosestEnemyInFOV()
 	return closestTarget
 end
 
--- هوك الماوس للتوجيه التلقائي داخل النطاق
-local oldIndex
+-- Hook 1: Raycast & Namecall Spoofing
+local oldNamecall
 if hookmetamethod then
-	oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-		if not checkcaller() and silentAimEnabled and self == mouse and (key == "Hit" or key == "Target") then
+	oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+		local method = getnamecallmethod()
+		local args = {...}
+
+		if silentAimEnabled and not checkcaller() then
 			local targetHead = getClosestEnemyInFOV()
 			if targetHead then
-				if key == "Hit" then
-					return targetHead.CFrame
-				elseif key == "Target" then
-					return targetHead
+				if method == "Raycast" then
+					local origin = args[1]
+					if origin then
+						args[2] = (targetHead.Position - origin).Unit * 1000
+						return oldNamecall(self, unpack(args))
+					end
+				elseif method == "FindPartOnRayWithIgnoreList" or method == "FindPartOnRay" or method == "FindPartOnRayWithWhitelist" then
+					local ray = args[1]
+					if ray then
+						args[1] = Ray.new(ray.Origin, (targetHead.Position - ray.Origin).Unit * 1000)
+						return oldNamecall(self, unpack(args))
+					end
 				end
+			end
+		end
+		return oldNamecall(self, ...)
+	end))
+
+	-- Hook 2: Mouse Hit/Target Spoofing
+	local oldIndex
+	oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
+		if silentAimEnabled and not checkcaller() and self == mouse and (key == "Hit" or key == "Target") then
+			local targetHead = getClosestEnemyInFOV()
+			if targetHead then
+				return (key == "Hit" and targetHead.CFrame) or targetHead
 			end
 		end
 		return oldIndex(self, key)
 	end))
 end
 
--- 6. قائمة التحكم الجانبية بالتصميم والألوان الجديدة
+-- 6. قائمة التحكم الجانبية
 local menu = Instance.new("Frame")
 menu.Size = UDim2.new(0, 140, 0, 165)
 menu.Position = UDim2.new(0, 10, 0.3, 0)
@@ -282,7 +304,6 @@ local function createStyledButton(text, pos, bgColor, strokeColor)
 	return btn
 end
 
--- أزرار التحكم
 local shapeBtn = createStyledButton("Shape: Plus (+)", UDim2.new(0.05, 0, 0.04, 0), Color3.fromRGB(28, 32, 48), Color3.fromRGB(0, 200, 255))
 shapeBtn.MouseButton1Click:Connect(function()
 	currentShapeIndex = (currentShapeIndex % #shapes) + 1
