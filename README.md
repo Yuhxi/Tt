@@ -172,7 +172,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- 5. قائمة التحكم والداخلية (مع الخلفية الداكنة)
+-- 5. قائمة التحكم والداخلية
 local menu = Instance.new("Frame")
 menu.Size = UDim2.new(0, 145, 0, 175)
 menu.Position = UDim2.new(0, 10, 0.28, 0)
@@ -183,7 +183,6 @@ menu.Parent = screenGui
 local menuCorner = Instance.new("UICorner"); menuCorner.CornerRadius = UDim.new(0, 10); menuCorner.Parent = menu
 local menuStroke = Instance.new("UIStroke"); menuStroke.Color = Color3.fromRGB(0, 220, 255); menuStroke.Thickness = 1.5; menuStroke.Parent = menu
 
--- طبقة خلفية متدرجة للتصميم
 local menuBgStyle = Instance.new("Frame")
 menuBgStyle.Size = UDim2.new(1, 0, 1, 0)
 menuBgStyle.BackgroundColor3 = Color3.fromRGB(0, 220, 255)
